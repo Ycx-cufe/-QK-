@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>中财期刊程序</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2em; }
+        .container { max-width: 600px; margin: auto; padding: 1em; border: 1px solid #ccc; border-radius: 5px; }
+        input, button { display: block; width: 100%; margin-top: 1em; padding: 0.5em; }
+        .result { margin-top: 1em; padding: 0.5em; border: 1px solid #eee; background-color: #f9f9f9; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>中财期刊抢课程序</h2>
+        <p>请谨慎使用，请勿用于非法用途。</p>
+        <label for="username">学号:</label>
+        <input type="text" id="username" placeholder="请输入你的学号">
+        
+        <label for="password">密码:</label>
+        <input type="password" id="password" placeholder="请输入你的密码">
+        
+        <label for="course_name">课程名称:</label>
+        <input type="text" id="course_name" placeholder="请输入课程全名">
+
+        <button onclick="queryCourse()">查询课程</button>
+
+        <div class="result" id="queryResult">
+            </div>
+
+        <button onclick="startGrab()" id="startGrabBtn" disabled>开始抢课</button>
+    </div>
+
+    <script>
+        async function queryCourse() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const course_name = document.getElementById('course_name').value;
+            const resultDiv = document.getElementById('queryResult');
+
+            resultDiv.innerHTML = '正在查询，请稍候...';
+
+            const response = await fetch('/api/query', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password, course_name })
+            });
+
+            const data = await response.json();
+            if (data.success === false) {
+                resultDiv.innerHTML = `<p style="color: red;">错误：${data.msg}</p>`;
+                document.getElementById('startGrabBtn').disabled = true;
+                return;
+            }
+
+            const courseInfo = data.tmpList && data.tmpList[0];
+            if (courseInfo) {
+                const totalCapacity = courseInfo.yxzrs;
+                const selectedStudents = courseInfo.rwzxs;
+                const remaining = totalCapacity - selectedStudents;
+
+                resultDiv.innerHTML = `
+                    <h3>查询成功！</h3>
+                    <p>课程名称: ${courseInfo.kcmc}</p>
+                    <p>已选人数: ${selectedStudents}</p>
+                    <p>课程容量: ${totalCapacity}</p>
+                    <p>余量: ${remaining}</p>
+                    <p>教学班ID: ${courseInfo.jxb_id}</p>
+                    <p>请在下方输入课程总容量和教学班ID来开始抢课。</p>
+                    <label for="course_total_capacity">课程总容量:</label>
+                    <input type="number" id="course_total_capacity" value="${totalCapacity}">
+                    <label for="target_jxb_id">教学班ID:</label>
+                    <input type="text" id="target_jxb_id" value="${courseInfo.jxb_id}">
+                `;
+                document.getElementById('startGrabBtn').disabled = false;
+            } else {
+                resultDiv.innerHTML = `<p style="color: red;">未找到课程，请检查课程名称。</p>`;
+                document.getElementById('startGrabBtn').disabled = true;
+            }
+        }
+
+        async function startGrab() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const course_name = document.getElementById('course_name').value;
+            const target_jxb_id = document.getElementById('target_jxb_id').value;
+            const course_total_capacity = document.getElementById('course_total_capacity').value;
+            const resultDiv = document.getElementById('queryResult');
+
+            resultDiv.innerHTML = '抢课任务已发送，请等待结果...';
+            document.getElementById('startGrabBtn').disabled = true;
+
+            const response = await fetch('/api/start_grab', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password, course_name, target_jxb_id, course_total_capacity })
+            });
+            const data = await response.json();
+
+            resultDiv.innerHTML += `<p>${data.msg}</p>`;
+        }
+    </script>
+</body>
+</html>
